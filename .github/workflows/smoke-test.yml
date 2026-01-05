@@ -1,0 +1,27 @@
+name: Smoke Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Shell syntax check
+        run: sh -n mkwork.sh
+
+      - name: Smoke test
+        run: |
+          set -eu
+          tmp_dir="$(mktemp -d)"
+          export HOME="$tmp_dir/home"
+          mkdir -p "$HOME"
+          . ./mkwork.sh
+          mkwork --version
+          mkwork doctor
+          mkwork testdir
+          test -d "$HOME/work/$(date +%Y%m%d)_testdir"
