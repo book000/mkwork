@@ -1,0 +1,36 @@
+name: Release assets
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  upload-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare release artifacts
+        run: |
+          set -eu
+          version="${{ github.event.release.tag_name }}"
+
+          mkdir -p dist
+          cp mkwork.sh dist/mkwork.sh
+
+          # Inject release version into the distributed script
+          sed -i "s/^MKWORK_VERSION=\"[^\"]*\"/MKWORK_VERSION=\"$version\"/" dist/mkwork.sh
+
+          # Generate checksum for integrity verification
+          (cd dist && sha256sum mkwork.sh > mkwork.sh.sha256)
+
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            dist/mkwork.sh
+            dist/mkwork.sh.sha256
