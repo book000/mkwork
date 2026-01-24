@@ -25,3 +25,15 @@
 - ログに機密情報を出力しない。
 
 ## リポジトリ固有
+- **type**: Shell function utility
+- **shell_compatibility**: POSIX shell (bash, zsh, sh)
+**installation_targets:**
+  - ~/.bashrc
+  - ~/.zshrc
+  - ~/.profile
+- **configuration**: File-based at ~/.config/mkwork/config or /etc/mkwork/config
+- **state_tracking**: JSON at ~/.local/state/mkwork/state.json or /var/lib/mkwork/state.json
+**features:**
+  - Automatic work directory creation
+  - Self-update mechanism
+  - Update checking (daily interval configurable)
