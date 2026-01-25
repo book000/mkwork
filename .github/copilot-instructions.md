@@ -36,7 +36,7 @@ sh -n mkwork.sh
 shellcheck mkwork.sh
 
 # スモークテスト
-./.github/workflows/smoke-test.yml に記載されたテストを実行
+# ./.github/workflows/smoke-test.yml に記載されたテストを実行
 ```
 
 ## テスト方針

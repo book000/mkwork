@@ -62,7 +62,7 @@
    mkdir -p "$HOME"
    . ./mkwork.sh
    mkwork --version
-   mkwork doctor
+   mkwork --doctor
    mkwork testdir
    test -d "$HOME/work/$(date +%Y%m%d)_testdir"
    ```
