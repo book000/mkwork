@@ -453,8 +453,9 @@ mkwork__list_dirs() {
   fi
 
   # グロブでディレクトリを列挙 (POSIX 互換)
+  # YYYYMMDD_ 形式のディレクトリのみマッチ (8 桁の数字 + アンダースコア)
   # nullglob 相当の処理 (候補がない場合を検出)
-  set -- "$MKWORK_WORK_ROOT"/????????_*
+  set -- "$MKWORK_WORK_ROOT"/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_*
   if [ ! -d "$1" ]; then
     # グロブがマッチしなかった場合
     printf 'mkwork: no directories found\n' >&2
@@ -496,19 +497,20 @@ mkwork__select_with_number() {
   printf 'Select number (or press Ctrl-C to cancel): ' >&2
   read -r selection || return 1
 
-  # 入力が空の場合はエラー
-  if [ -z "$selection" ]; then
-    printf 'mkwork: no selection\n' >&2
-    return 1
-  fi
-
-  # 入力が数値かチェック
+  # 入力が数値かチェック (空文字列も含む)
   case "$selection" in
     ''|*[!0-9]*)
       printf 'mkwork: invalid number\n' >&2
       return 1
       ;;
   esac
+
+  # ディレクトリの総数を取得して上限チェック
+  total=$(printf '%s\n' "$dirs" | wc -l)
+  if [ "$selection" -lt 1 ] || [ "$selection" -gt "$total" ]; then
+    printf 'mkwork: selection out of range (1-%d)\n' "$total" >&2
+    return 1
+  fi
 
   # 選択された行を取得
   selected_dir=$(printf '%s\n' "$dirs" | sed -n "${selection}p")
