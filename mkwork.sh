@@ -462,7 +462,7 @@ mkwork__list_dirs() {
     return 1
   fi
 
-  # 日付降順でソート (basename のみを使用して判定)
+  # 日付降順でソート (フルパスを sort -r に渡すが、YYYYMMDD_ プレフィックスにより正しくソートされる)
   for dir in "$@"; do
     printf '%s\n' "$dir"
   done | sort -r
@@ -488,8 +488,8 @@ mkwork__select_with_number() {
   # 一覧を表示 (改行区切り)
   i=1
   printf '%s\n' "$dirs" | while IFS= read -r dir; do
-    basename=$(basename "$dir")
-    printf '%2d) %s\n' "$i" "$basename" >&2
+    dir_basename=$(basename "$dir")
+    printf '%2d) %s\n' "$i" "$dir_basename" >&2
     i=$((i + 1))
   done
 
