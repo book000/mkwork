@@ -540,12 +540,14 @@ mkwork__cmd_select() {
   # fzf の有無を確認
   if command -v fzf >/dev/null 2>&1; then
     selected_dir=$(mkwork__select_with_fzf)
+    select_status=$?
   else
     selected_dir=$(mkwork__select_with_number)
+    select_status=$?
   fi
 
   # 選択がキャンセルされた場合
-  if [ $? -ne 0 ] || [ -z "$selected_dir" ]; then
+  if [ $select_status -ne 0 ] || [ -z "$selected_dir" ]; then
     return 1
   fi
 
