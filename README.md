@@ -36,6 +36,15 @@ mkwork example
 
 This creates and moves into `~/work/20260106_example`.
 
+## Select a Directory
+
+```sh
+mkwork --select
+```
+
+This lists existing work directories and moves into the selected one.
+If `fzf` is installed, it uses an interactive fuzzy finder; otherwise it falls back to a number-input prompt.
+
 ## Management Commands
 
 ```sh

@@ -294,6 +294,7 @@ mkwork__usage() {
   cat <<'EOF'
 Usage:
   mkwork <name>
+  mkwork --select | -s
   mkwork --install [--repo OWNER/REPO] [--write-config=none]
   mkwork --update
   mkwork --uninstall
