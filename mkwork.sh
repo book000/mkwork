@@ -310,9 +310,25 @@ mkwork__cmd_install() {
   # Install from local source when available; otherwise fetch from release.
   while [ $# -gt 0 ]; do
     case "$1" in
-      --repo) repo_override="$2"; shift 2 ;;
+      --repo)
+        case "${2:-}" in
+          ''|-*)
+            printf 'mkwork: option requires an argument: --repo\n' >&2
+            return 1
+            ;;
+        esac
+        repo_override="$2"
+        shift 2
+        ;;
       --write-config=none) write_config=0; shift 1 ;;
-      *) break ;;
+      -*)
+        printf 'mkwork: unknown option: %s\n' "$1" >&2
+        return 1
+        ;;
+      *)
+        printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+        return 1
+        ;;
     esac
   done
 
