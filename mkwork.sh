@@ -607,6 +607,15 @@ mkwork() {
       ;;
   esac
 
+  for arg in "$@"; do
+    case "$arg" in
+      -*)
+        printf 'mkwork: unknown option: %s\n' "$arg" >&2
+        return 1
+        ;;
+    esac
+  done
+
   name="$*"
   if [ -z "$name" ]; then
     mkwork__usage
