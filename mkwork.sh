@@ -328,6 +328,7 @@ EOF
 
 # mkwork__cmd_install: install mkwork script and rc block.
 mkwork__cmd_install() {
+  mkwork__reject_if_mise_managed "--install" || return 1
   repo_override=""
   write_config=1
   # Install from local source when available; otherwise fetch from release.
@@ -376,6 +377,7 @@ mkwork__cmd_install() {
 
 # mkwork__cmd_update: update installed mkwork from releases.
 mkwork__cmd_update() {
+  mkwork__reject_if_mise_managed "--update" || return 1
   mkwork__load_config
   mkwork__require_deps || return 1
   mkwork__ensure_dirs
@@ -413,6 +415,7 @@ mkwork__cmd_update() {
 
 # mkwork__cmd_uninstall: remove installed files and rc block.
 mkwork__cmd_uninstall() {
+  mkwork__reject_if_mise_managed "--uninstall" || return 1
   mkwork__install_paths
   rc_file=$(mkwork__rc_file_default)
   mkwork__remove_rc_block "$rc_file"
@@ -433,6 +436,7 @@ mkwork__cmd_doctor() {
   printf '  install_path: %s\n' "$MKWORK_INSTALL_PATH"
   printf '  config_path: %s\n' "$MKWORK_CONFIG_PATH"
   printf '  state_dir: %s\n' "$MKWORK_STATE_DIR"
+  printf '  managed_by: %s\n' "${MKWORK_MANAGED_BY:-standalone}"
 
   if command -v curl >/dev/null 2>&1; then
     printf '  curl: ok\n'
