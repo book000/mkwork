@@ -353,6 +353,10 @@ mkwork__cmd_install() {
 
 # mkwork__cmd_update: update installed mkwork from releases.
 mkwork__cmd_update() {
+  if [ $# -gt 0 ]; then
+    printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+    return 1
+  fi
   mkwork__load_config
   mkwork__require_deps || return 1
   mkwork__ensure_dirs
@@ -390,6 +394,10 @@ mkwork__cmd_update() {
 
 # mkwork__cmd_uninstall: remove installed files and rc block.
 mkwork__cmd_uninstall() {
+  if [ $# -gt 0 ]; then
+    printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+    return 1
+  fi
   mkwork__install_paths
   rc_file=$(mkwork__rc_file_default)
   mkwork__remove_rc_block "$rc_file"
@@ -400,6 +408,10 @@ mkwork__cmd_uninstall() {
 
 # mkwork__cmd_doctor: print diagnostics.
 mkwork__cmd_doctor() {
+  if [ $# -gt 0 ]; then
+    printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+    return 1
+  fi
   mkwork__load_config
   mkwork__install_paths
 
