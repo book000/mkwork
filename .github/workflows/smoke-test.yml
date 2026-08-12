@@ -28,8 +28,9 @@ jobs:
           test -d "$HOME/work/$(date +%Y%m%d)_testdir"
 
           # standalone では管理系コマンドが従来どおり動作すること
-          mkwork --install
+          mkwork --install --repo book000/mkwork
           test -f "$HOME/.local/share/mkwork/mkwork.sh"
+          grep -q '^repo=book000/mkwork$' "$HOME/.config/mkwork/config"
           mkwork --uninstall
           test ! -f "$HOME/.local/share/mkwork/mkwork.sh"
 
@@ -55,3 +56,30 @@ jobs:
             grep -q "managed by mise" /tmp/mise-uninstall.err
             [ ! -f "$HOME/.local/state/mkwork/state.json" ]
           '
+
+      - name: Smoke test (error cases)
+        run: |
+          set -eu
+          tmp_dir="$(mktemp -d)"
+          export HOME="$tmp_dir/home"
+          mkdir -p "$HOME"
+          . ./mkwork.sh
+
+          ! mkwork --unknown 2>/dev/null
+          ! mkwork foo --unknown 2>/dev/null
+          test ! -d "$HOME/work/$(date +%Y%m%d)_foo"
+          ! mkwork -bar 2>/dev/null
+          ! mkwork -- -bar 2>/dev/null
+          ! mkwork --update extra 2>/dev/null
+          ! mkwork --doctor extra 2>/dev/null
+          ! mkwork --uninstall extra 2>/dev/null
+          ! mkwork --version extra 2>/dev/null
+          ! mkwork --help extra 2>/dev/null
+          ! mkwork --select extra 2>/dev/null
+          ! mkwork --install --repo 2>/dev/null
+          ! mkwork --install --unknown 2>/dev/null
+          ! mkwork --install bogusarg 2>/dev/null
+          ! mkwork --install --repo not-a-valid-repo 2>/dev/null
+
+          mkwork --version
+          mkwork --doctor

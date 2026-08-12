@@ -338,9 +338,54 @@ mkwork__cmd_install() {
   # Install from local source when available; otherwise fetch from release.
   while [ $# -gt 0 ]; do
     case "$1" in
-      --repo) repo_override="$2"; shift 2 ;;
+      --repo)
+        case "${2:-}" in
+          '')
+            printf 'mkwork: option requires an argument: --repo\n' >&2
+            return 1
+            ;;
+          -*)
+            printf 'mkwork: option requires an argument: --repo (got option-like value: %s)\n' "$2" >&2
+            return 1
+            ;;
+        esac
+        # OWNER/REPO 以外の文字列(改行含む)を許すと、そのまま設定ファイルへ書き込まれ config injection につながるため形式を検証する。
+        case "$2" in
+          *[!A-Za-z0-9._/-]*|*/*/*)
+            printf 'mkwork: invalid repo (expected OWNER/REPO): %s\n' "$2" >&2
+            return 1
+            ;;
+        esac
+        repo_owner="${2%%/*}"
+        repo_name="${2#*/}"
+        case "$2" in
+          */*) : ;;
+          *) repo_name="" ;;
+        esac
+        case "$repo_owner" in
+          '')
+            printf 'mkwork: invalid repo (expected OWNER/REPO): %s\n' "$2" >&2
+            return 1
+            ;;
+        esac
+        case "$repo_name" in
+          '')
+            printf 'mkwork: invalid repo (expected OWNER/REPO): %s\n' "$2" >&2
+            return 1
+            ;;
+        esac
+        repo_override="$2"
+        shift 2
+        ;;
       --write-config=none) write_config=0; shift 1 ;;
-      *) break ;;
+      -*)
+        printf 'mkwork: unknown option: %s\n' "$1" >&2
+        return 1
+        ;;
+      *)
+        printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+        return 1
+        ;;
     esac
   done
 
@@ -382,6 +427,10 @@ mkwork__cmd_install() {
 # mkwork__cmd_update: update installed mkwork from releases.
 mkwork__cmd_update() {
   mkwork__reject_if_mise_managed "--update" || return 1
+  if [ $# -gt 0 ]; then
+    printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+    return 1
+  fi
   mkwork__load_config
   mkwork__require_deps || return 1
   mkwork__ensure_dirs
@@ -420,6 +469,10 @@ mkwork__cmd_update() {
 # mkwork__cmd_uninstall: remove installed files and rc block.
 mkwork__cmd_uninstall() {
   mkwork__reject_if_mise_managed "--uninstall" || return 1
+  if [ $# -gt 0 ]; then
+    printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+    return 1
+  fi
   mkwork__install_paths
   rc_file=$(mkwork__rc_file_default)
   mkwork__remove_rc_block "$rc_file"
@@ -430,6 +483,10 @@ mkwork__cmd_uninstall() {
 
 # mkwork__cmd_doctor: print diagnostics.
 mkwork__cmd_doctor() {
+  if [ $# -gt 0 ]; then
+    printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+    return 1
+  fi
   mkwork__load_config
   mkwork__install_paths
 
@@ -601,6 +658,11 @@ mkwork() {
   fi
   case "$1" in
     --select|-s)
+      shift
+      if [ $# -gt 0 ]; then
+        printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+        return 1
+      fi
       mkwork__cmd_select
       return $?
       ;;
@@ -625,10 +687,20 @@ mkwork() {
       return $?
       ;;
     --version|-v|version)
+      shift
+      if [ $# -gt 0 ]; then
+        printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+        return 1
+      fi
       printf 'mkwork %s\n' "$MKWORK_VERSION"
       return 0
       ;;
     -h|--help|help)
+      shift
+      if [ $# -gt 0 ]; then
+        printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+        return 1
+      fi
       mkwork__usage
       return 0
       ;;
@@ -637,6 +709,15 @@ mkwork() {
       return 1
       ;;
   esac
+
+  for arg in "$@"; do
+    case "$arg" in
+      -*)
+        printf 'mkwork: unknown option: %s\n' "$arg" >&2
+        return 1
+        ;;
+    esac
+  done
 
   name="$*"
   if [ -z "$name" ]; then

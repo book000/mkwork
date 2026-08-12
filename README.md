@@ -58,6 +58,14 @@ mkwork example
 
 This creates and moves into `~/work/20260106_example`.
 
+## Error Handling
+
+- Unknown options (anything starting with `-` that mkwork does not recognize) cause an error; mkwork exits with status 1 and prints the error to stderr.
+- Work names starting with `-` are not allowed (they are treated as unknown options).
+- `--` is not supported as an option terminator; it is treated as an unknown option like any other unrecognized `-`-prefixed argument.
+- `mkwork --install --repo` requires a value; omitting it is an error.
+- `version` and `help` are reserved dispatch words and cannot be used as work names.
+
 ## Select a Directory
 
 ```sh
