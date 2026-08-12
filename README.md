@@ -28,6 +28,28 @@ mkwork will append its rc block to one of the following:
 - zsh: `~/.zshrc`
 - others: `~/.profile`
 
+## Install via mise
+
+mkwork can also be installed and run through [mise](https://mise.jdx.dev/), using the same release asset as the standalone installer. Add the following to your `mise.toml`:
+
+```toml
+[tools]
+"github:book000/mkwork" = { version = "<version>", asset_pattern = "mkwork.sh", bin = "mkwork.sh" }
+
+[shell_alias]
+mkwork = '''
+unalias mkwork
+export MKWORK_INSTALL_METHOD=mise
+. "$(mise where github:book000/mkwork)/mkwork.sh"
+unset MKWORK_INSTALL_METHOD
+mkwork
+'''
+```
+
+`unalias mkwork` is required: Bash expands the `mkwork` alias while reading the `mkwork() { ... }` function definition inside `mkwork.sh`, which would otherwise cause a syntax error.
+
+When installed this way, mkwork detects it is mise-managed and disables its own `--install`, `--update`, `--uninstall`, and periodic update checks — use mise itself to upgrade or remove it (`mise upgrade` / `mise uninstall github:book000/mkwork`). `mkwork <name>`, `mkwork --select`, `mkwork --doctor`, and `mkwork --version` keep working as usual. `mkwork --doctor` reports which mode is active via a `managed_by: mise|standalone` line.
+
 ## Usage
 
 ```sh

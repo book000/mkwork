@@ -28,6 +28,28 @@ mkwork --install
 - zsh: `~/.zshrc`
 - それ以外: `~/.profile`
 
+## mise 経由でのインストール
+
+mkwork は [mise](https://mise.jdx.dev/) 経由でもインストール・利用できます。standalone インストーラと同じ Release asset を使います。`mise.toml` に以下を追加してください。
+
+```toml
+[tools]
+"github:book000/mkwork" = { version = "<version>", asset_pattern = "mkwork.sh", bin = "mkwork.sh" }
+
+[shell_alias]
+mkwork = '''
+unalias mkwork
+export MKWORK_INSTALL_METHOD=mise
+. "$(mise where github:book000/mkwork)/mkwork.sh"
+unset MKWORK_INSTALL_METHOD
+mkwork
+'''
+```
+
+`unalias mkwork` は必須です。これを省略すると、`mkwork.sh` 内部の `mkwork() { ... }` 定義を読み込む際に Bash が `mkwork` alias を展開してしまい、構文エラーになります。
+
+この方法でインストールすると、mkwork は自身が mise 管理下にあることを検知し、`--install`・`--update`・`--uninstall` と定期更新チェックを無効化します。更新・削除は mise 側で行ってください(`mise upgrade` / `mise uninstall github:book000/mkwork`)。`mkwork <name>`・`mkwork --select`・`mkwork --doctor`・`mkwork --version` は通常どおり利用できます。`mkwork --doctor` の `managed_by: mise|standalone` 行で現在の管理主体を確認できます。
+
 ## 使い方
 
 ```sh
