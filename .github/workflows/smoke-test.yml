@@ -25,3 +25,25 @@ jobs:
           mkwork --doctor
           mkwork testdir
           test -d "$HOME/work/$(date +%Y%m%d)_testdir"
+
+          # mise-managed シナリオ: 実際の bash alias/unalias 機構を経由したブートストラップを模倣する。
+          # 単に MKWORK_INSTALL_METHOD=mise を export して source するだけでは、
+          # README に掲載する実際のブートストラップ順序 (unalias mkwork を含む) の不具合を検出できないため、
+          # bash の alias 展開を明示的に経由させる。
+          bash -c '
+            set -eu
+            shopt -s expand_aliases
+            mkwork_sh_path="$(pwd)/mkwork.sh"
+            tmp_dir_mise="$(mktemp -d)"
+            export HOME="$tmp_dir_mise/home"
+            mkdir -p "$HOME"
+            alias mkwork="unalias mkwork; export MKWORK_INSTALL_METHOD=mise; . \"$mkwork_sh_path\"; unset MKWORK_INSTALL_METHOD; mkwork"
+            mkwork testdir2
+            [ -d "$HOME/work/$(date +%Y%m%d)_testdir2" ]
+            [ "$MKWORK_MANAGED_BY" = "mise" ]
+            mkwork --doctor | grep -q "managed_by: mise"
+            ! mkwork --install
+            ! mkwork --update
+            ! mkwork --uninstall
+            [ ! -f "$HOME/.local/state/mkwork/state.json" ]
+          '
