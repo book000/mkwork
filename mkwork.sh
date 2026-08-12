@@ -9,6 +9,14 @@ MKWORK_DEFAULT_NOTIFY_UPDATE=1
 MKWORK_DEFAULT_AUTO_UPDATE=0
 MKWORK_DEFAULT_UPDATE_CHECK_INTERVAL_DAYS=1
 
+# MKWORK_MANAGED_BY: インストール元 (mise/standalone) を current shell に閉じた内部状態として保持する。
+# 子シェルへの誤伝播を避けるため export しない。source のたびに MKWORK_INSTALL_METHOD のみから再計算する。
+if [ "${MKWORK_INSTALL_METHOD:-}" = "mise" ]; then
+  MKWORK_MANAGED_BY="mise"
+else
+  MKWORK_MANAGED_BY="standalone"
+fi
+
 # mkwork__is_root: return 0 when running as root.
 mkwork__is_root() {
   [ "$(id -u 2>/dev/null)" = "0" ]
@@ -48,6 +56,21 @@ mkwork__ensure_dirs() {
   else
     mkdir -p "/usr/local/share/mkwork" "/etc/mkwork" "/var/lib/mkwork"
   fi
+}
+
+# mkwork__is_mise_managed: mise 管理下かどうかを判定する
+mkwork__is_mise_managed() {
+  [ "${MKWORK_MANAGED_BY:-standalone}" = "mise" ]
+}
+
+# mkwork__reject_if_mise_managed: mise 管理下では管理系コマンドを拒否する
+# 引数: $1 = コマンド名 (エラーメッセージ用)
+mkwork__reject_if_mise_managed() {
+  if mkwork__is_mise_managed; then
+    printf 'mkwork: %s is disabled because mkwork is managed by mise. Use mise instead (e.g. mise upgrade / mise uninstall github:book000/mkwork).\n' "$1" >&2
+    return 1
+  fi
+  return 0
 }
 
 # mkwork__load_config: load config files (later wins) with defaults.
