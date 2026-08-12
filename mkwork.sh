@@ -312,8 +312,37 @@ mkwork__cmd_install() {
     case "$1" in
       --repo)
         case "${2:-}" in
-          ''|-*)
+          '')
             printf 'mkwork: option requires an argument: --repo\n' >&2
+            return 1
+            ;;
+          -*)
+            printf 'mkwork: option requires an argument: --repo (got option-like value: %s)\n' "$2" >&2
+            return 1
+            ;;
+        esac
+        # OWNER/REPO 以外の文字列(改行含む)を許すと、そのまま設定ファイルへ書き込まれ config injection につながるため形式を検証する。
+        case "$2" in
+          *[!A-Za-z0-9._/-]*|*/*/*)
+            printf 'mkwork: invalid repo (expected OWNER/REPO): %s\n' "$2" >&2
+            return 1
+            ;;
+        esac
+        repo_owner="${2%%/*}"
+        repo_name="${2#*/}"
+        case "$2" in
+          */*) : ;;
+          *) repo_name="" ;;
+        esac
+        case "$repo_owner" in
+          '')
+            printf 'mkwork: invalid repo (expected OWNER/REPO): %s\n' "$2" >&2
+            return 1
+            ;;
+        esac
+        case "$repo_name" in
+          '')
+            printf 'mkwork: invalid repo (expected OWNER/REPO): %s\n' "$2" >&2
             return 1
             ;;
         esac
