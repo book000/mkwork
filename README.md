@@ -5,7 +5,7 @@ mkwork is a shell-function utility that creates a dated work directory and moves
 - Automatically creates `~/work/YYYYMMDD_name`
 - Changes directory to the newly created path
 - Available in the current shell right after install
-- Self-update and uninstall are done via `mkwork` itself
+- Self-update and uninstall are done via `mkwork` itself (standalone install only; see "Install via mise")
 
 ## Dependencies
 
@@ -79,7 +79,7 @@ mkwork --version
 
 ## Configuration
 
-Configuration is file-based only (no environment variables).
+Configuration is file-based. The only exception is `MKWORK_INSTALL_METHOD`, which the mise `[shell_alias]` bootstrap uses transiently (see "Install via mise" above) and which mkwork unsets after reading it.
 
 Load order (later wins):
 
@@ -135,6 +135,7 @@ mkwork --uninstall
 ```
 
 This removes the rc block, installed script, config, and state.
+Not available when mise-managed; see "Install via mise" for cleanup in that case.
 
 ## Why a shell function?
 

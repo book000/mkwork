@@ -17,6 +17,7 @@ jobs:
       - name: Smoke test
         run: |
           set -eu
+          repo_root="$(pwd)"
           tmp_dir="$(mktemp -d)"
           export HOME="$tmp_dir/home"
           mkdir -p "$HOME"
@@ -26,14 +27,18 @@ jobs:
           mkwork testdir
           test -d "$HOME/work/$(date +%Y%m%d)_testdir"
 
+          # standalone では管理系コマンドが従来どおり動作すること
+          mkwork --install
+          test -f "$HOME/.local/share/mkwork/mkwork.sh"
+          mkwork --uninstall
+          test ! -f "$HOME/.local/share/mkwork/mkwork.sh"
+
           # mise-managed シナリオ: 実際の bash alias/unalias 機構を経由したブートストラップを模倣する。
-          # 単に MKWORK_INSTALL_METHOD=mise を export して source するだけでは、
-          # README に掲載する実際のブートストラップ順序 (unalias mkwork を含む) の不具合を検出できないため、
-          # bash の alias 展開を明示的に経由させる。
+          # bash の alias 展開を明示的に経由させないと、README のブートストラップ順序の不具合を検出できない。
           bash -c '
             set -eu
             shopt -s expand_aliases
-            mkwork_sh_path="$(pwd)/mkwork.sh"
+            mkwork_sh_path="'"$repo_root"'/mkwork.sh"
             tmp_dir_mise="$(mktemp -d)"
             export HOME="$tmp_dir_mise/home"
             mkdir -p "$HOME"
@@ -42,8 +47,11 @@ jobs:
             [ -d "$HOME/work/$(date +%Y%m%d)_testdir2" ]
             [ "$MKWORK_MANAGED_BY" = "mise" ]
             mkwork --doctor | grep -q "managed_by: mise"
-            ! mkwork --install
-            ! mkwork --update
-            ! mkwork --uninstall
+            ! mkwork --install 2>/tmp/mise-install.err
+            grep -q "managed by mise" /tmp/mise-install.err
+            ! mkwork --update 2>/tmp/mise-update.err
+            grep -q "managed by mise" /tmp/mise-update.err
+            ! mkwork --uninstall 2>/tmp/mise-uninstall.err
+            grep -q "managed by mise" /tmp/mise-uninstall.err
             [ ! -f "$HOME/.local/state/mkwork/state.json" ]
           '

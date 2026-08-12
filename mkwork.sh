@@ -324,6 +324,9 @@ Usage:
   mkwork --uninstall
   mkwork --doctor
   mkwork --version
+
+  --install, --update, and --uninstall are disabled when mkwork is managed
+  by mise. Use mise itself (e.g. mise upgrade / mise uninstall) instead.
 EOF
 }
 
