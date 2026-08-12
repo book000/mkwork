@@ -226,6 +226,7 @@ mkwork__download_release() {
 
 # mkwork__maybe_check_update: check and optionally auto-update.
 mkwork__maybe_check_update() {
+  mkwork__is_mise_managed && return 0
   mkwork__load_config
   [ "$MKWORK_UPDATE_CHECK" = "1" ] || return 0
   # Skip silently if deps or interval conditions are not met.
