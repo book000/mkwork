@@ -9,6 +9,14 @@ MKWORK_DEFAULT_NOTIFY_UPDATE=1
 MKWORK_DEFAULT_AUTO_UPDATE=0
 MKWORK_DEFAULT_UPDATE_CHECK_INTERVAL_DAYS=1
 
+# MKWORK_MANAGED_BY: インストール元 (mise/standalone) を current shell に閉じた内部状態として保持する。
+# 子シェルへの誤伝播を避けるため export しない。source のたびに MKWORK_INSTALL_METHOD のみから再計算する。
+if [ "${MKWORK_INSTALL_METHOD:-}" = "mise" ]; then
+  MKWORK_MANAGED_BY="mise"
+else
+  MKWORK_MANAGED_BY="standalone"
+fi
+
 # mkwork__is_root: return 0 when running as root.
 mkwork__is_root() {
   [ "$(id -u 2>/dev/null)" = "0" ]
@@ -48,6 +56,21 @@ mkwork__ensure_dirs() {
   else
     mkdir -p "/usr/local/share/mkwork" "/etc/mkwork" "/var/lib/mkwork"
   fi
+}
+
+# mkwork__is_mise_managed: mise 管理下かどうかを判定する
+mkwork__is_mise_managed() {
+  [ "${MKWORK_MANAGED_BY:-standalone}" = "mise" ]
+}
+
+# mkwork__reject_if_mise_managed: mise 管理下では管理系コマンドを拒否する
+# 引数: $1 = コマンド名 (エラーメッセージ用)
+mkwork__reject_if_mise_managed() {
+  if mkwork__is_mise_managed; then
+    printf 'mkwork: %s is disabled because mkwork is managed by mise. Use mise instead (e.g. mise upgrade / mise uninstall github:book000/mkwork).\n' "$1" >&2
+    return 1
+  fi
+  return 0
 }
 
 # mkwork__load_config: load config files (later wins) with defaults.
@@ -203,6 +226,7 @@ mkwork__download_release() {
 
 # mkwork__maybe_check_update: check and optionally auto-update.
 mkwork__maybe_check_update() {
+  mkwork__is_mise_managed && return 0
   mkwork__load_config
   [ "$MKWORK_UPDATE_CHECK" = "1" ] || return 0
   # Skip silently if deps or interval conditions are not met.
@@ -300,11 +324,15 @@ Usage:
   mkwork --uninstall
   mkwork --doctor
   mkwork --version
+
+  --install, --update, and --uninstall are disabled when mkwork is managed
+  by mise. Use mise itself (e.g. mise upgrade / mise uninstall) instead.
 EOF
 }
 
 # mkwork__cmd_install: install mkwork script and rc block.
 mkwork__cmd_install() {
+  mkwork__reject_if_mise_managed "--install" || return 1
   repo_override=""
   write_config=1
   # Install from local source when available; otherwise fetch from release.
@@ -398,6 +426,7 @@ mkwork__cmd_install() {
 
 # mkwork__cmd_update: update installed mkwork from releases.
 mkwork__cmd_update() {
+  mkwork__reject_if_mise_managed "--update" || return 1
   if [ $# -gt 0 ]; then
     printf 'mkwork: unexpected argument: %s\n' "$1" >&2
     return 1
@@ -439,6 +468,7 @@ mkwork__cmd_update() {
 
 # mkwork__cmd_uninstall: remove installed files and rc block.
 mkwork__cmd_uninstall() {
+  mkwork__reject_if_mise_managed "--uninstall" || return 1
   if [ $# -gt 0 ]; then
     printf 'mkwork: unexpected argument: %s\n' "$1" >&2
     return 1
@@ -467,6 +497,7 @@ mkwork__cmd_doctor() {
   printf '  install_path: %s\n' "$MKWORK_INSTALL_PATH"
   printf '  config_path: %s\n' "$MKWORK_CONFIG_PATH"
   printf '  state_dir: %s\n' "$MKWORK_STATE_DIR"
+  printf '  managed_by: %s\n' "${MKWORK_MANAGED_BY:-standalone}"
 
   if command -v curl >/dev/null 2>&1; then
     printf '  curl: ok\n'

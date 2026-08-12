@@ -5,7 +5,7 @@
 - `~/work/YYYYMMDD_name` を自動作成
 - 作成後そのディレクトリへ `cd`
 - インストール直後から現在のシェルで利用可能
-- 自己更新 / アンインストールも `mkwork` 単体で完結
+- 自己更新 / アンインストールも `mkwork` 単体で完結（standalone インストール時のみ。「mise 経由でのインストール」参照）
 
 ## 依存コマンド
 
@@ -27,6 +27,28 @@ mkwork --install
 - bash: `~/.bashrc`
 - zsh: `~/.zshrc`
 - それ以外: `~/.profile`
+
+## mise 経由でのインストール
+
+mkwork は [mise](https://mise.jdx.dev/) 経由でもインストール・利用できます。standalone インストーラと同じ Release asset を使います。`mise.toml` に以下を追加してください。
+
+```toml
+[tools]
+"github:book000/mkwork" = { version = "<version>", asset_pattern = "mkwork.sh", bin = "mkwork.sh" }
+
+[shell_alias]
+mkwork = '''
+unalias mkwork
+export MKWORK_INSTALL_METHOD=mise
+. "$(mise where github:book000/mkwork)/mkwork.sh"
+unset MKWORK_INSTALL_METHOD
+mkwork
+'''
+```
+
+`unalias mkwork` は必須です。これを省略すると、`mkwork.sh` 内部の `mkwork() { ... }` 定義を読み込む際に Bash が `mkwork` alias を展開してしまい、構文エラーになります。
+
+この方法でインストールすると、mkwork は自身が mise 管理下にあることを検知し、`--install`・`--update`・`--uninstall` と定期更新チェックを無効化します。更新・削除は mise 側で行ってください（`mise upgrade` / `mise uninstall github:book000/mkwork`）。`mkwork <name>`・`mkwork --select`・`mkwork --doctor`・`mkwork --version` は通常どおり利用できます。`mkwork --doctor` の `managed_by: mise|standalone` 行で現在の管理主体を確認できます。
 
 ## 使い方
 
@@ -65,7 +87,7 @@ mkwork --version
 
 ## 設定ファイル
 
-設定はファイルのみで管理します（環境変数は使いません）。
+設定は基本的にファイルで管理します。唯一の例外が `MKWORK_INSTALL_METHOD` で、mise の `[shell_alias]` ブートストラップ（前述の「mise 経由でのインストール」参照）が一時的に使う環境変数であり、mkwork は読み取り後にこれを unset します。
 
 読み込み順（後勝ち）:
 
@@ -123,6 +145,7 @@ mkwork --uninstall
 ```
 
 rc ブロック、インストール本体、設定、状態ファイルを削除します。
+mise 管理下では利用できません。その場合の削除方法は「mise 経由でのインストール」を参照してください。
 
 ## 仕組み（概要）
 

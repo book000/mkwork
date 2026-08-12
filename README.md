@@ -5,7 +5,7 @@ mkwork is a shell-function utility that creates a dated work directory and moves
 - Automatically creates `~/work/YYYYMMDD_name`
 - Changes directory to the newly created path
 - Available in the current shell right after install
-- Self-update and uninstall are done via `mkwork` itself
+- Self-update and uninstall are done via `mkwork` itself (standalone install only; see "Install via mise")
 
 ## Dependencies
 
@@ -27,6 +27,28 @@ mkwork will append its rc block to one of the following:
 - bash: `~/.bashrc`
 - zsh: `~/.zshrc`
 - others: `~/.profile`
+
+## Install via mise
+
+mkwork can also be installed and run through [mise](https://mise.jdx.dev/), using the same release asset as the standalone installer. Add the following to your `mise.toml`:
+
+```toml
+[tools]
+"github:book000/mkwork" = { version = "<version>", asset_pattern = "mkwork.sh", bin = "mkwork.sh" }
+
+[shell_alias]
+mkwork = '''
+unalias mkwork
+export MKWORK_INSTALL_METHOD=mise
+. "$(mise where github:book000/mkwork)/mkwork.sh"
+unset MKWORK_INSTALL_METHOD
+mkwork
+'''
+```
+
+`unalias mkwork` is required: Bash expands the `mkwork` alias while reading the `mkwork() { ... }` function definition inside `mkwork.sh`, which would otherwise cause a syntax error.
+
+When installed this way, mkwork detects it is mise-managed and disables its own `--install`, `--update`, `--uninstall`, and periodic update checks — use mise itself to upgrade or remove it (`mise upgrade` / `mise uninstall github:book000/mkwork`). `mkwork <name>`, `mkwork --select`, `mkwork --doctor`, and `mkwork --version` keep working as usual. `mkwork --doctor` reports which mode is active via a `managed_by: mise|standalone` line.
 
 ## Usage
 
@@ -65,7 +87,7 @@ mkwork --version
 
 ## Configuration
 
-Configuration is file-based only (no environment variables).
+Configuration is file-based. The only exception is `MKWORK_INSTALL_METHOD`, which the mise `[shell_alias]` bootstrap uses transiently (see "Install via mise" above) and which mkwork unsets after reading it.
 
 Load order (later wins):
 
@@ -121,6 +143,7 @@ mkwork --uninstall
 ```
 
 This removes the rc block, installed script, config, and state.
+Not available when mise-managed; see "Install via mise" for cleanup in that case.
 
 ## Why a shell function?
 
