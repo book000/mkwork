@@ -582,6 +582,11 @@ mkwork() {
   fi
   case "$1" in
     --select|-s)
+      shift
+      if [ $# -gt 0 ]; then
+        printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+        return 1
+      fi
       mkwork__cmd_select
       return $?
       ;;
@@ -606,10 +611,20 @@ mkwork() {
       return $?
       ;;
     --version|-v|version)
+      shift
+      if [ $# -gt 0 ]; then
+        printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+        return 1
+      fi
       printf 'mkwork %s\n' "$MKWORK_VERSION"
       return 0
       ;;
     -h|--help|help)
+      shift
+      if [ $# -gt 0 ]; then
+        printf 'mkwork: unexpected argument: %s\n' "$1" >&2
+        return 1
+      fi
       mkwork__usage
       return 0
       ;;
