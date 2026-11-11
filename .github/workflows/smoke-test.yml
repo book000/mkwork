@@ -27,15 +27,15 @@ jobs:
           mkwork testdir
           test -d "$HOME/work/$(date +%Y%m%d)_testdir"
 
-          # standalone では管理系コマンドが従来どおり動作すること
+          # Management commands must keep working for a standalone install
           mkwork --install --repo book000/mkwork
           test -f "$HOME/.local/share/mkwork/mkwork.sh"
           grep -q '^repo=book000/mkwork$' "$HOME/.config/mkwork/config"
           mkwork --uninstall
           test ! -f "$HOME/.local/share/mkwork/mkwork.sh"
 
-          # mise-managed シナリオ: 実際の bash alias/unalias 機構を経由したブートストラップを模倣する。
-          # bash の alias 展開を明示的に経由させないと、README のブートストラップ順序の不具合を検出できない。
+          # mise-managed scenario: mimic the bootstrap through the real bash alias/unalias mechanism.
+          # Without going through bash alias expansion, a bug in the README bootstrap order would go undetected.
           bash -c '
             set -eu
             shopt -s expand_aliases

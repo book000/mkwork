@@ -57,6 +57,7 @@ mkwork example
 ```
 
 `~/work/20260106_example` のようなディレクトリが作成され、その場に移動します。
+複数の単語を渡すとスペースで連結されます（`mkwork my project` は `~/work/20260106_my project` を作成します）。スペースを避けたい場合は単語 1 つにしてください。
 
 ## エラーハンドリング
 
@@ -83,7 +84,10 @@ mkwork --update
 mkwork --uninstall
 mkwork --doctor
 mkwork --version
+mkwork --help
 ```
+
+短縮形: `--select` は `-s`、`--version` は `-v`、`--help` は `-h`。
 
 ## 設定ファイル
 
@@ -103,7 +107,7 @@ mkwork --version
 設定項目:
 
 - `repo=OWNER/REPO`（更新取得元）
-- `work_root=~/work`
+- `work_root=~/work`（先頭の `~` は `$HOME` に展開）
 - `update_check=0|1`（デフォルト 1）
 - `notify_update=0|1`（デフォルト 1）
 - `auto_update=0|1`（デフォルト 0）
@@ -125,12 +129,12 @@ mkwork --install --repo OWNER/REPO --write-config=none
 
 ## 更新チェック
 
-`mkwork` 実行時に 1 日 1 回、更新チェックを行います。
+`mkwork <name>` または `mkwork --select` の実行時に、`update_check_interval_days`（デフォルト 1 日）に 1 回まで更新チェックを行います。
 
 - `update_check=1` のときのみ
-- `update_check_interval_days` を経過していればチェック
 - 更新がある場合のみ通知（`notify_update=1`）
 - 自動更新は `auto_update=1` の時のみ
+- `curl`・`jq`・`sha256sum`/`shasum` のいずれかがない場合は黙ってスキップ
 - 更新失敗や通信失敗でも mkwork 本来の機能は継続
 
 状態は以下に保存されます:

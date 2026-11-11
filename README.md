@@ -57,6 +57,7 @@ mkwork example
 ```
 
 This creates and moves into `~/work/20260106_example`.
+If you pass several words, they are joined with spaces (`mkwork my project` creates `~/work/20260106_my project`), so use a single word to avoid spaces.
 
 ## Error Handling
 
@@ -83,7 +84,10 @@ mkwork --update
 mkwork --uninstall
 mkwork --doctor
 mkwork --version
+mkwork --help
 ```
+
+Short forms: `-s` for `--select`, `-v` for `--version`, `-h` for `--help`.
 
 ## Configuration
 
@@ -103,7 +107,7 @@ Format:
 Options:
 
 - `repo=OWNER/REPO` (update source)
-- `work_root=~/work`
+- `work_root=~/work` (a leading `~` is expanded to `$HOME`)
 - `update_check=0|1` (default 1)
 - `notify_update=0|1` (default 1)
 - `auto_update=0|1` (default 0)
@@ -123,12 +127,12 @@ mkwork --install --repo OWNER/REPO --write-config=none
 
 ## Update checks
 
-mkwork checks for updates once per day when you run it.
+mkwork checks for updates at most once per `update_check_interval_days` (default 1 day) when you run `mkwork <name>` or `mkwork --select`.
 
 - Only when `update_check=1`
-- Checks if `update_check_interval_days` has elapsed
 - Notifies only when an update is found (`notify_update=1`)
 - Auto-update runs only with `auto_update=1`
+- Skipped silently when `curl`, `jq` or `sha256sum`/`shasum` is missing
 - Failures do not block core mkwork functionality
 
 State is stored at:
