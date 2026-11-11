@@ -9,8 +9,8 @@ MKWORK_DEFAULT_NOTIFY_UPDATE=1
 MKWORK_DEFAULT_AUTO_UPDATE=0
 MKWORK_DEFAULT_UPDATE_CHECK_INTERVAL_DAYS=1
 
-# MKWORK_MANAGED_BY: インストール元 (mise/standalone) を current shell に閉じた内部状態として保持する。
-# 子シェルへの誤伝播を避けるため export しない。source のたびに MKWORK_INSTALL_METHOD のみから再計算する。
+# MKWORK_MANAGED_BY (mise or standalone) is kept as shell-local state.
+# It is not exported, so child shells never inherit it, and it is recomputed from MKWORK_INSTALL_METHOD on every source.
 if [ "${MKWORK_INSTALL_METHOD:-}" = "mise" ]; then
   MKWORK_MANAGED_BY="mise"
 else
@@ -58,13 +58,13 @@ mkwork__ensure_dirs() {
   fi
 }
 
-# mkwork__is_mise_managed: mise 管理下かどうかを判定する
+# mkwork__is_mise_managed: return 0 when managed by mise.
 mkwork__is_mise_managed() {
   [ "${MKWORK_MANAGED_BY:-standalone}" = "mise" ]
 }
 
-# mkwork__reject_if_mise_managed: mise 管理下では管理系コマンドを拒否する
-# 引数: $1 = コマンド名 (エラーメッセージ用)
+# mkwork__reject_if_mise_managed: reject management commands when managed by mise.
+# Arguments: $1 = command name (used in the error message)
 mkwork__reject_if_mise_managed() {
   if mkwork__is_mise_managed; then
     printf 'mkwork: %s is disabled because mkwork is managed by mise. Use mise instead (e.g. mise upgrade / mise uninstall github:book000/mkwork).\n' "$1" >&2
@@ -75,7 +75,6 @@ mkwork__reject_if_mise_managed() {
 
 # mkwork__load_config: load config files (later wins) with defaults.
 mkwork__load_config() {
-  # Load config files (later wins), with defaults when missing.
   MKWORK_REPO="$MKWORK_DEFAULT_REPO"
   MKWORK_WORK_ROOT="$MKWORK_DEFAULT_WORK_ROOT"
   MKWORK_UPDATE_CHECK="$MKWORK_DEFAULT_UPDATE_CHECK"
@@ -349,7 +348,7 @@ mkwork__cmd_install() {
             return 1
             ;;
         esac
-        # OWNER/REPO 以外の文字列(改行含む)を許すと、そのまま設定ファイルへ書き込まれ config injection につながるため形式を検証する。
+        # Validate the format: the value is written to the config file as is, so anything other than OWNER/REPO (including newlines) would allow config injection.
         case "$2" in
           *[!A-Za-z0-9._/-]*|*/*/*)
             printf 'mkwork: invalid repo (expected OWNER/REPO): %s\n' "$2" >&2
@@ -530,51 +529,42 @@ mkwork__cmd_doctor() {
   fi
 }
 
-# mkwork__list_dirs: 作成したディレクトリの一覧を取得する
-# 引数: なし
-# 出力: ディレクトリのフルパス (日付降順、改行区切り)
-# 終了コード: 0 = 成功、1 = エラー
+# mkwork__list_dirs: list the YYYYMMDD_* directories under work_root.
+# Output: full paths, newest date first, one per line
+# Exit status: 0 = success, 1 = error
 mkwork__list_dirs() {
-  # $MKWORK_WORK_ROOT が未設定または不存在の場合はエラー
   if [ -z "$MKWORK_WORK_ROOT" ] || [ ! -d "$MKWORK_WORK_ROOT" ]; then
     printf 'mkwork: work_root is not set or does not exist\n' >&2
     return 1
   fi
 
-  # グロブでディレクトリを列挙 (POSIX 互換)
-  # YYYYMMDD_ 形式のディレクトリのみマッチ (8 桁の数字 + アンダースコア)
-  # nullglob 相当の処理 (候補がない場合を検出)
+  # POSIX has no nullglob: when nothing matches, "$1" is the literal pattern, which is not a directory.
   set -- "$MKWORK_WORK_ROOT"/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_*
   if [ ! -d "$1" ]; then
-    # グロブがマッチしなかった場合
     printf 'mkwork: no directories found\n' >&2
     return 1
   fi
 
-  # 日付降順でソート (フルパスを sort -r に渡すが、YYYYMMDD_ プレフィックスにより正しくソートされる)
+  # The YYYYMMDD_ prefix makes a reverse sort of the full paths newest first.
   for dir in "$@"; do
     printf '%s\n' "$dir"
   done | sort -r
 }
 
-# mkwork__select_with_fzf: fzf を使ってディレクトリを選択する
-# 引数: なし
-# 出力: 選択されたディレクトリのフルパス (標準出力)
-# 終了コード: 0 = 選択成功、1 = キャンセルまたはエラー
+# mkwork__select_with_fzf: pick a directory with fzf.
+# Output: the selected full path
+# Exit status: fzf's status (0 = selected, 130 = cancelled)
 mkwork__select_with_fzf() {
   mkwork__list_dirs | fzf --prompt="Select directory: " --height=40% --reverse
-  # fzf の終了コードをそのまま返す (0 = 選択、130 = キャンセル)
 }
 
-# mkwork__select_with_number: 番号入力でディレクトリを選択する (POSIX 互換)
-# 引数: なし
-# 出力: 選択されたディレクトリのフルパス (標準出力)
-# 終了コード: 0 = 選択成功、1 = キャンセルまたはエラー
+# mkwork__select_with_number: pick a directory by entering its number (fallback when fzf is missing).
+# Output: the selected full path
+# Exit status: 0 = selected, 1 = cancelled or error
 mkwork__select_with_number() {
-  # ディレクトリ一覧を取得
   dirs=$(mkwork__list_dirs) || return 1
 
-  # 一覧を表示 (改行区切り)
+  # The menu goes to stderr so that stdout carries only the selected path.
   i=1
   printf '%s\n' "$dirs" | while IFS= read -r dir; do
     dir_basename=$(basename "$dir")
@@ -582,11 +572,9 @@ mkwork__select_with_number() {
     i=$((i + 1))
   done
 
-  # 番号を入力
   printf 'Select number (or press Ctrl-C to cancel): ' >&2
   read -r selection || return 1
 
-  # 入力が数値かチェック (空文字列も含む)
   case "$selection" in
     ''|*[!0-9]*)
       printf 'mkwork: invalid number\n' >&2
@@ -594,17 +582,14 @@ mkwork__select_with_number() {
       ;;
   esac
 
-  # ディレクトリの総数を取得して上限チェック
   total=$(printf '%s\n' "$dirs" | wc -l)
   if [ "$selection" -lt 1 ] || [ "$selection" -gt "$total" ]; then
     printf 'mkwork: selection out of range (1-%d)\n' "$total" >&2
     return 1
   fi
 
-  # 選択された行を取得
   selected_dir=$(printf '%s\n' "$dirs" | sed -n "${selection}p")
 
-  # 選択結果が空の場合はエラー
   if [ -z "$selected_dir" ]; then
     printf 'mkwork: invalid selection\n' >&2
     return 1
@@ -613,20 +598,16 @@ mkwork__select_with_number() {
   printf '%s\n' "$selected_dir"
 }
 
-# mkwork__cmd_select: ディレクトリ選択モード
-# 引数: なし
-# 終了コード: 0 = 成功、1 = エラー
+# mkwork__cmd_select: select an existing work directory and cd into it.
+# Exit status: 0 = success, 1 = error or cancelled
 mkwork__cmd_select() {
-  # 設定を読み込む
   mkwork__load_config
 
-  # tty チェック (非対話モードでは実行しない)
   if [ ! -t 0 ]; then
     printf 'mkwork: select mode requires interactive terminal\n' >&2
     return 1
   fi
 
-  # fzf の有無を確認
   if command -v fzf >/dev/null 2>&1; then
     selected_dir=$(mkwork__select_with_fzf)
     select_status=$?
@@ -635,15 +616,12 @@ mkwork__cmd_select() {
     select_status=$?
   fi
 
-  # 選択がキャンセルされた場合
   if [ $select_status -ne 0 ] || [ -z "$selected_dir" ]; then
     return 1
   fi
 
-  # 選択されたディレクトリへ移動 (親シェルの cwd を変更)
   cd -- "$selected_dir" || return 1
 
-  # 更新チェック (非ブロッキング)
   mkwork__maybe_check_update >/dev/null 2>&1 || true
 }
 

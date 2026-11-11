@@ -1,47 +1,21 @@
-# GitHub Copilot コードレビュー指示
+# Copilot review instructions
 
-このファイルは GitHub Copilot のコードレビュー向けに、このリポジトリ固有のレビュー観点を定義する。汎用的な指摘ではなく、以下の観点に絞ってレビューすること。
+Follow `AGENTS.md` at the repository root for project overview, commands and conventions. Review only against the points below; skip generic advice.
 
-## プロジェクトの性質
+## Language
 
-`mkwork` は単一の POSIX シェルスクリプト `mkwork.sh` で構成される、日付つき作業ディレクトリ作成ユーティリティ。スクリプトは `#!/usr/bin/env sh` で動作する。CI では ShellCheck と `sh -n` によるシンタックスチェック、スモークテストのみを実施し、テストフレームワークは存在しない。
+Deliverables (comments, docs, commit messages, PR text) are English. `README-ja.md` is an intentional Japanese translation that must stay in sync with `README.md`. Runtime messages are English without emoji.
 
-## 重点的にレビューする観点
+## Checklist
 
-### POSIX Shell 互換性
+- POSIX `sh` only: flag bashisms (`[[ ]]`, `local`, arrays, `function`, `$'...'`) and anything `shellcheck mkwork.sh` would report (unquoted expansions, unchecked `cd`).
+- Internal functions use the `mkwork__` prefix. Flag new global variables that could clobber the user's shell environment, since the script is sourced.
+- Errors print to stderr and `return 1`; flag any `exit`. Flag swallowed `curl`, `jq` or checksum failures in install and update commands (the background update check is intentionally silent), and any dependency of the core create-and-`cd` path on them.
+- Downloaded release assets must be verified with `mkwork__sha256_check`. Flag unquoted or unvalidated user input that reaches files, URLs or `rm`.
+- User-facing changes need updates to both READMEs and a case in `.github/workflows/smoke-test.yml`.
 
-- bashism を指摘する（`[[ ]]`、`local`、配列、`function` キーワード、`$'...'`、`${var,,}` などの Bash 固有構文）。POSIX `sh` で動作する必要がある。
-- ShellCheck が検出しうる問題を指摘する（未クォート変数によるワード分割・グロブ展開、`cd` の失敗未チェック、`$(...)` の未クォートなど）。
+## Do not flag
 
-### 命名とスコープ
-
-- 内部関数は `mkwork__` プレフィックスを持つこと。公開インターフェースは `mkwork` 関数のみ。
-- プレフィックスなしのグローバル変数への代入など、親シェル環境を汚染する変更を指摘する。
-
-### エラーハンドリング
-
-- 関数はエラー時に `return 1` 等で非ゼロを返すこと。
-- 外部コマンド（`curl`、`jq`、`sha256sum`/`shasum`）の失敗が握り潰されていないか。これらは更新機能でのみ使用され、本体機能（ディレクトリ作成と移動）は外部コマンドに依存しない設計を崩していないか。
-
-### セキュリティ
-
-- 認証情報・トークンのハードコードやログ出力を指摘する。
-- ダウンロードしたリリースアセットが SHA256 で検証されているか（`mkwork__sha256_check`）。
-- ユーザー入力・変数が適切にクォートされ、コマンドインジェクションやパス injection の余地がないか。
-
-### テストとドキュメント
-
-- ユーザー向け挙動や CLI オプションの追加・変更時に、`.github/workflows/smoke-test.yml` へ対応するスモークテストのケースが追加されているか。
-- 挙動変更時に `README.md`（英語）と `README-ja.md`（日本語）の両方が更新されているか。
-
-### スタイル
-
-- コメントは日本語、エラーメッセージは英語（絵文字を使わない）。
-- 日本語と英数字の間に半角スペースが入っているか（コメント・ドキュメント）。
-
-## 指摘しないこと
-
-- 日本語のコメント・ドキュメント（意図的な方針）。
-- テストフレームワークの不在（ShellCheck + スモークテストのみが方針）。
-- `mkwork__` プレフィックスや POSIX 限定の記法（Bash のほうが簡潔な場合でも POSIX 互換を優先する方針）。
-- リリース時に CI が置換する `MKWORK_VERSION` の値。
+- The absence of a test framework (ShellCheck plus smoke tests is the policy).
+- POSIX-only style where Bash would be shorter.
+- The `MKWORK_VERSION` value (replaced by the release workflow).
