@@ -198,6 +198,10 @@ mkwork__sha256_check() {
 # mkwork__require_deps: ensure required external commands exist.
 mkwork__require_deps() {
   # Hard deps for network update paths.
+  if ! command -v mktemp >/dev/null 2>&1; then
+    printf 'mkwork: mktemp is required\n' >&2
+    return 1
+  fi
   if ! command -v curl >/dev/null 2>&1; then
     printf 'mkwork: curl is required\n' >&2
     return 1
@@ -220,8 +224,27 @@ mkwork__download_release() {
   out_dir="$3"
   mkwork__curl "https://github.com/$repo/releases/download/$tag/mkwork.sh" > "$out_dir/mkwork.sh" || return 1
   mkwork__curl "https://github.com/$repo/releases/download/$tag/mkwork.sh.sha256" > "$out_dir/mkwork.sh.sha256" || return 1
-  (cd "$out_dir" && mkwork__sha256_check "mkwork.sh.sha256")
+  (cd "$out_dir" &&
+    awk 'NR == 1 && length($0) == 75 && substr($0, 65) == "  mkwork.sh" && substr($0, 1, 64) !~ /[^0-9a-fA-F]/ { valid = 1; next } { valid = 0; exit 1 } END { if (!valid || NR != 1) exit 1 }' mkwork.sh.sha256 &&
+    mkwork__sha256_check "mkwork.sh.sha256")
 }
+
+mkwork__install_file() (
+  umask 077
+  workdir=$(mktemp -d "${MKWORK_INSTALL_PATH%/*}/.mkwork.XXXXXXXXXX") || return 1
+  trap 'rm -rf "$workdir"' 0
+  trap 'return 1' HUP INT TERM
+  if [ "$1" = release ]; then
+    if ! mkwork__download_release "$2" "$3" "$workdir"; then
+      printf 'mkwork: download or sha256 verification failed\n' >&2
+      return 1
+    fi
+  else
+    cp "$2" "$workdir/mkwork.sh" || return 1
+  fi
+  chmod 644 "$workdir/mkwork.sh" || return 1
+  mv -f "$workdir/mkwork.sh" "$MKWORK_INSTALL_PATH" || return 1
+)
 
 # mkwork__maybe_check_update: check and optionally auto-update.
 mkwork__maybe_check_update() {
@@ -396,7 +419,7 @@ mkwork__cmd_install() {
   mkwork__install_paths
 
   if [ -n "$MKWORK_SOURCE_PATH" ] && [ -f "$MKWORK_SOURCE_PATH" ]; then
-    cp "$MKWORK_SOURCE_PATH" "$MKWORK_INSTALL_PATH" || return 1
+    mkwork__install_file local "$MKWORK_SOURCE_PATH" || return 1
   else
     mkwork__load_config
     mkwork__require_deps || return 1
@@ -405,16 +428,7 @@ mkwork__cmd_install() {
       printf 'mkwork: failed to fetch latest release info\n' >&2
       return 1
     fi
-    tmpdir=$(mkwork__path_home_expand "${TMPDIR:-/tmp}")
-    workdir="$tmpdir/mkwork.$$"
-    mkdir -p "$workdir" || return 1
-    if ! mkwork__download_release "$MKWORK_REPO" "$latest_tag" "$workdir"; then
-      printf 'mkwork: download or sha256 verification failed\n' >&2
-      rm -rf "$workdir"
-      return 1
-    fi
-    mv "$workdir/mkwork.sh" "$MKWORK_INSTALL_PATH" || return 1
-    rm -rf "$workdir"
+    mkwork__install_file release "$MKWORK_REPO" "$latest_tag" || return 1
   fi
 
   if [ "$write_config" = "1" ] && [ -n "$repo_override" ]; then
@@ -445,18 +459,7 @@ mkwork__cmd_update() {
     return 1
   fi
 
-  tmpdir=$(mkwork__path_home_expand "${TMPDIR:-/tmp}")
-  workdir="$tmpdir/mkwork.$$"
-  mkdir -p "$workdir" || return 1
-
-  if ! mkwork__download_release "$MKWORK_REPO" "$latest_tag" "$workdir"; then
-    printf 'mkwork: download or sha256 verification failed\n' >&2
-    rm -rf "$workdir"
-    return 1
-  fi
-
-  mv "$workdir/mkwork.sh" "$MKWORK_INSTALL_PATH" || return 1
-  rm -rf "$workdir"
+  mkwork__install_file release "$MKWORK_REPO" "$latest_tag" || return 1
 
   now_iso=$(mkwork__now_utc_iso)
   mkwork__write_state "$now_iso" "$latest_tag" "$now_iso" "ok"

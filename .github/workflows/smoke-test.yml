@@ -142,3 +142,43 @@ jobs:
 
           mkwork --version
           mkwork --doctor
+
+      - name: Secure release installation
+        run: |
+          set -eu
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+          export HOME="$tmp_dir/home"
+          mkdir -p "$HOME/.local/share/mkwork" "$tmp_dir/bin" "$tmp_dir/release"
+          printf 'MKWORK_VERSION="vTEST"\n' > "$tmp_dir/release/mkwork.sh"
+          (cd "$tmp_dir/release" && sha256sum mkwork.sh > mkwork.sh.sha256)
+          cat > "$tmp_dir/bin/curl" <<CURL
+          #!/bin/sh
+          for url; do :; done
+          case "\$url" in
+            */releases/latest) printf '{"tag_name":"vTEST"}\n' ;;
+            */releases/download/vTEST/*) cat "$tmp_dir/release/\${url##*/}" ;;
+            *) exit 1 ;;
+          esac
+          CURL
+          chmod +x "$tmp_dir/bin/curl"
+          export PATH="$tmp_dir/bin:$PATH"
+          . ./mkwork.sh
+          mkwork__is_root() { return 1; }
+          installed="$HOME/.local/share/mkwork/mkwork.sh"
+          MKWORK_SOURCE_PATH=""
+          mkwork__cmd_install --write-config=none
+          cmp "$installed" "$tmp_dir/release/mkwork.sh"
+          test "$(find "${installed%/*}" -name '.mkwork.*' | wc -l)" -eq 0
+          mkwork --update
+          cmp "$installed" "$tmp_dir/release/mkwork.sh"
+          test "$(find "${installed%/*}" -name '.mkwork.*' | wc -l)" -eq 0
+          printf 'sentinel\n' > "$installed"
+          (cd "$tmp_dir/release" && sha256sum mkwork.sh | sed 's/  mkwork.sh/  other/' > mkwork.sh.sha256)
+          ! mkwork --update
+          test "$(cat "$installed")" = sentinel
+          test "$(find "${installed%/*}" -name '.mkwork.*' | wc -l)" -eq 0
+          rm "$tmp_dir/release/mkwork.sh.sha256"
+          ! mkwork --update
+          test "$(cat "$installed")" = sentinel
+          test "$(find "${installed%/*}" -name '.mkwork.*' | wc -l)" -eq 0

@@ -11,6 +11,7 @@ mkwork is a shell-function utility that creates a dated work directory and moves
 
 The following are required for update checks, updates, and release downloads:
 
+- `mktemp`
 - `curl`
 - `jq`
 - `sha256sum` or `shasum`
