@@ -134,6 +134,7 @@ mkwork checks for updates at most once per `update_check_interval_days` (default
 - Notifies only when an update is found (`notify_update=1`)
 - Auto-update runs only with `auto_update=1`
 - Skipped silently when `curl`, `jq` or `sha256sum`/`shasum` is missing
+- Network requests are time-limited (10 seconds for the release lookup, 30 seconds per download), so a stalled network cannot hold up the prompt for long
 - Failures do not block core mkwork functionality
 
 State is stored at:
