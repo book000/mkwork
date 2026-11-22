@@ -156,6 +156,47 @@ jobs:
           grep -q 'unbound variable' "$tmp_dir/err" && exit 1
           grep -q '^Usage:' "$tmp_dir/err" "$tmp_dir/out"
 
+      - name: Update check timeouts
+        run: |
+          set -eu
+          tmp_dir="$(mktemp -d)"
+          export HOME="$tmp_dir/home"
+          mkdir -p "$HOME" "$tmp_dir/bin" "$tmp_dir/out"
+          export PATH="$tmp_dir/bin:$PATH"
+          export CURL_ARGS="$tmp_dir/curl.args" CURL_COUNT="$tmp_dir/curl.count"
+
+          # Stub curl records its arguments; flags must reach curl and the tag lookup must override the default total timeout
+          cat > "$tmp_dir/bin/curl" <<'EOF'
+          #!/bin/sh
+          printf '%s\n' "$*" >> "$CURL_ARGS"
+          for url; do :; done
+          case "$url" in
+            */releases/latest) printf '{"tag_name":"vTEST"}\n' ;;
+            *) printf 'x\n' ;;
+          esac
+          EOF
+          chmod +x "$tmp_dir/bin/curl"
+
+          sh -c '. ./mkwork.sh; mkwork__get_latest_tag owner/repo' > /dev/null
+          test "$(cat "$CURL_ARGS")" = "-fsSL --connect-timeout 5 --max-time 30 --max-time 10 https://api.github.com/repos/owner/repo/releases/latest"
+
+          : > "$CURL_ARGS"
+          sh -c '. ./mkwork.sh; mkwork__download_release owner/repo vTEST "$1"' sh "$tmp_dir/out" > /dev/null 2>&1 || true
+          expected="$(printf '%s\n%s' \
+            '-fsSL --connect-timeout 5 --max-time 30 https://github.com/owner/repo/releases/download/vTEST/mkwork.sh' \
+            '-fsSL --connect-timeout 5 --max-time 30 https://github.com/owner/repo/releases/download/vTEST/mkwork.sh.sha256')"
+          test "$(cat "$CURL_ARGS")" = "$expected"
+
+          cat > "$tmp_dir/bin/curl" <<'EOF'
+          #!/bin/sh
+          printf 'x\n' >> "$CURL_COUNT"
+          exit 28
+          EOF
+          sh -c '. ./mkwork.sh; mkwork__maybe_check_update'
+          sh -c '. ./mkwork.sh; mkwork__maybe_check_update'
+          grep -q '"last_result": "error"' "$HOME/.local/state/mkwork/state.json"
+          test "$(wc -l < "$CURL_COUNT")" -eq 1
+
       - name: Secure release installation
         run: |
           set -eu
@@ -195,3 +236,37 @@ jobs:
           ! mkwork --update
           test "$(cat "$installed")" = sentinel
           test "$(find "${installed%/*}" -name '.mkwork.*' | wc -l)" -eq 0
+
+      - name: Install repo override is used for download
+        run: |
+          set -eu
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+          export HOME="$tmp_dir/home"
+          mkdir -p "$HOME" "$tmp_dir/bin" "$tmp_dir/release"
+          printf 'MKWORK_VERSION="vTEST"\n' > "$tmp_dir/release/mkwork.sh"
+          (cd "$tmp_dir/release" && sha256sum mkwork.sh > mkwork.sh.sha256)
+          cat > "$tmp_dir/bin/curl" <<CURL
+          #!/bin/sh
+          for url; do :; done
+          printf '%s\n' "\$url" >> "$tmp_dir/urls"
+          case "\$url" in
+            */releases/latest) printf '{"tag_name":"vTEST"}\n' ;;
+            */releases/download/vTEST/*) cat "$tmp_dir/release/\${url##*/}" ;;
+            *) exit 1 ;;
+          esac
+          CURL
+          chmod +x "$tmp_dir/bin/curl"
+          export PATH="$tmp_dir/bin:$PATH"
+          . ./mkwork.sh
+          mkwork__is_root() { return 1; }
+          MKWORK_SOURCE_PATH=""
+          mkwork__cmd_install --repo example/custom --write-config=none
+          test -s "$tmp_dir/urls"
+          test "$(grep -vc 'example/custom' "$tmp_dir/urls" || :)" -eq 0
+          test ! -e "$HOME/.config/mkwork/config"
+          : > "$tmp_dir/urls"
+          mkwork__cmd_install --repo example/custom
+          test -s "$tmp_dir/urls"
+          test "$(grep -vc 'example/custom' "$tmp_dir/urls" || :)" -eq 0
+          grep -q '^repo=example/custom$' "$HOME/.config/mkwork/config"

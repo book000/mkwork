@@ -159,9 +159,10 @@ EOF
 }
 
 # mkwork__curl: curl wrapper with safe flags.
+# Timeouts keep optional network work from blocking the prompt; later caller flags override them.
 mkwork__curl() {
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$@"
+    curl -fsSL --connect-timeout 5 --max-time 30 "$@"
   else
     return 1
   fi
@@ -173,7 +174,7 @@ mkwork__get_release_tag_stable() {
   if ! command -v jq >/dev/null 2>&1; then
     return 1
   fi
-  mkwork__curl "https://api.github.com/repos/$repo/releases/latest" | jq -r '.tag_name // ""'
+  mkwork__curl --max-time 10 "https://api.github.com/repos/$repo/releases/latest" | jq -r '.tag_name // ""'
 }
 
 # mkwork__get_latest_tag: get the latest release tag.
@@ -422,6 +423,8 @@ mkwork__cmd_install() {
     mkwork__install_file local "$MKWORK_SOURCE_PATH" || return 1
   else
     mkwork__load_config
+    # load_config resets MKWORK_REPO, so apply the override afterward and before any download.
+    [ -z "$repo_override" ] || MKWORK_REPO="$repo_override"
     mkwork__require_deps || return 1
     latest_tag=$(mkwork__get_latest_tag "$MKWORK_REPO")
     if [ -z "$latest_tag" ]; then
