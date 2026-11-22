@@ -422,6 +422,8 @@ mkwork__cmd_install() {
     mkwork__install_file local "$MKWORK_SOURCE_PATH" || return 1
   else
     mkwork__load_config
+    # load_config resets MKWORK_REPO, so apply the override afterward and before any download.
+    [ -z "$repo_override" ] || MKWORK_REPO="$repo_override"
     mkwork__require_deps || return 1
     latest_tag=$(mkwork__get_latest_tag "$MKWORK_REPO")
     if [ -z "$latest_tag" ]; then

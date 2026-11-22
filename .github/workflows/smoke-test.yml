@@ -182,3 +182,37 @@ jobs:
           ! mkwork --update
           test "$(cat "$installed")" = sentinel
           test "$(find "${installed%/*}" -name '.mkwork.*' | wc -l)" -eq 0
+
+      - name: Install repo override is used for download
+        run: |
+          set -eu
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+          export HOME="$tmp_dir/home"
+          mkdir -p "$HOME" "$tmp_dir/bin" "$tmp_dir/release"
+          printf 'MKWORK_VERSION="vTEST"\n' > "$tmp_dir/release/mkwork.sh"
+          (cd "$tmp_dir/release" && sha256sum mkwork.sh > mkwork.sh.sha256)
+          cat > "$tmp_dir/bin/curl" <<CURL
+          #!/bin/sh
+          for url; do :; done
+          printf '%s\n' "\$url" >> "$tmp_dir/urls"
+          case "\$url" in
+            */releases/latest) printf '{"tag_name":"vTEST"}\n' ;;
+            */releases/download/vTEST/*) cat "$tmp_dir/release/\${url##*/}" ;;
+            *) exit 1 ;;
+          esac
+          CURL
+          chmod +x "$tmp_dir/bin/curl"
+          export PATH="$tmp_dir/bin:$PATH"
+          . ./mkwork.sh
+          mkwork__is_root() { return 1; }
+          MKWORK_SOURCE_PATH=""
+          mkwork__cmd_install --repo example/custom --write-config=none
+          test -s "$tmp_dir/urls"
+          test "$(grep -vc 'example/custom' "$tmp_dir/urls" || :)" -eq 0
+          test ! -e "$HOME/.config/mkwork/config"
+          : > "$tmp_dir/urls"
+          mkwork__cmd_install --repo example/custom
+          test -s "$tmp_dir/urls"
+          test "$(grep -vc 'example/custom' "$tmp_dir/urls" || :)" -eq 0
+          grep -q '^repo=example/custom$' "$HOME/.config/mkwork/config"
