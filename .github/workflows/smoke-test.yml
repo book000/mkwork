@@ -57,6 +57,32 @@ jobs:
             [ ! -f "$HOME/.local/state/mkwork/state.json" ]
           '
 
+      - name: Expand configured work roots
+        run: |
+          set -eu
+          sudo apt-get update && sudo apt-get install -y zsh
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+          export HOME="$tmp_dir/home"
+          export MKWORK_TEST_SCRIPT="$(pwd)/mkwork.sh"
+          mkdir -p "$HOME/.config/mkwork" "$tmp_dir/start"
+          cat > "$tmp_dir/test.sh" <<'EOF'
+          set -eu
+          . "$MKWORK_TEST_SCRIPT"
+          mkwork__config_paths() { printf '%s\n' "$HOME/.config/mkwork/config"; }
+          test "$(mkwork__path_home_expand '~')" = "$HOME"
+          test "$(mkwork__path_home_expand '~/work space')" = "$HOME/work space"
+          test "$(mkwork__path_home_expand "$HOME/work")" = "$HOME/work"
+          test "$(mkwork__path_home_expand '~other/work')" = '~other/work'
+          printf 'work_root=~/work space\nupdate_check=0\n' > "$HOME/.config/mkwork/config"
+          mkwork example
+          test "$PWD" = "$HOME/work space/$(date +%Y%m%d)_example"
+          EOF
+          for shell in bash dash zsh; do
+            (cd "$tmp_dir/start" && "$shell" "$tmp_dir/test.sh")
+          done
+          test ! -d "$tmp_dir/start/~"
+
       - name: Preserve caller variables
         run: |
           set -eu

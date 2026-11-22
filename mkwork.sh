@@ -25,7 +25,7 @@ mkwork__is_root() {
 # mkwork__path_home_expand: expand a leading ~ to $HOME.
 mkwork__path_home_expand() {
   case "$1" in
-    ~|~/*) printf '%s\n' "$HOME${1#~}" ;;
+    \~|\~/*) printf '%s\n' "$HOME${1#\~}" ;;
     *) printf '%s\n' "$1" ;;
   esac
 }
