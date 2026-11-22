@@ -658,7 +658,7 @@ mkwork() {
       MKWORK_SOURCE_PATH="$0"
     fi
   fi
-  case "$1" in
+  case "${1-}" in
     --select|-s)
       shift
       if [ $# -gt 0 ]; then
