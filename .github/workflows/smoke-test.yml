@@ -174,7 +174,6 @@ jobs:
             '-fsSL --connect-timeout 5 --max-time 30 https://github.com/owner/repo/releases/download/vTEST/mkwork.sh.sha256')"
           test "$(cat "$CURL_ARGS")" = "$expected"
 
-          # A timed-out lookup records an error and the next run stops at the interval gate
           cat > "$tmp_dir/bin/curl" <<'EOF'
           #!/bin/sh
           printf 'x\n' >> "$CURL_COUNT"
