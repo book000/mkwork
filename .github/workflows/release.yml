@@ -15,18 +15,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Prepare release artifacts
-        run: |
-          set -eu
-          version="${{ github.event.release.tag_name }}"
-
-          mkdir -p dist
-          cp mkwork.sh dist/mkwork.sh
-
-          # Inject release version into the distributed script
-          sed -i "s/^MKWORK_VERSION=\"[^\"]*\"/MKWORK_VERSION=\"$version\"/" dist/mkwork.sh
-
-          # Generate checksum for integrity verification
-          (cd dist && sha256sum mkwork.sh > mkwork.sh.sha256)
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: sh scripts/prepare-release.sh "$RELEASE_TAG"
 
       - name: Upload assets to release
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4

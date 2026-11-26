@@ -20,6 +20,33 @@ jobs:
       - name: Shell syntax check
         run: sh -n mkwork.sh
 
+      - name: Validate release artifacts
+        run: |
+          set -eu
+          script="$(pwd)/scripts/prepare-release.sh"
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+          cp mkwork.sh "$tmp_dir/mkwork.sh"
+          cd "$tmp_dir"
+          export HOME="$tmp_dir/home"
+          mkdir -p "$HOME"
+          for tag in v1.2.3 v1.2.3-rc.1+build.5 2026.11_a; do
+            rm -rf dist
+            sh "$script" "$tag"
+            grep -qxF "MKWORK_VERSION=\"$tag\"  # replaced by release workflow" dist/mkwork.sh
+            (cd dist && sha256sum -c mkwork.sh.sha256)
+            test "$(sh -c '. ./dist/mkwork.sh; mkwork --version')" = "mkwork $tag"
+          done
+          rm -rf dist
+          for tag in '' 'v1/2' 'v1&x' 'v1"x' 'v1\x' 'v1 x' 'v1$(touch injected)' 'v1`touch injected`' "$(printf 'v1\nx')"; do
+            if sh "$script" "$tag"; then
+              echo "accepted unsafe tag: $tag" >&2
+              exit 1
+            fi
+            test ! -e dist
+            test ! -e injected
+          done
+
       - name: Smoke test
         run: |
           set -eu
