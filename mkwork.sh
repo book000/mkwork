@@ -548,17 +548,23 @@ mkwork__list_dirs() {
     return 1
   fi
 
-  # POSIX has no nullglob: when nothing matches, "$1" is the literal pattern, which is not a directory.
-  set -- "$MKWORK_WORK_ROOT"/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_*
-  if [ ! -d "$1" ]; then
+  dirs=$(
+    if [ -n "${ZSH_VERSION:-}" ]; then
+      setopt nonomatch
+    fi
+    for dir in "$MKWORK_WORK_ROOT"/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_*; do
+      if [ -d "$dir" ]; then
+        printf '%s\n' "$dir"
+      fi
+    done
+  )
+  if [ -z "$dirs" ]; then
     printf 'mkwork: no directories found\n' >&2
     return 1
   fi
 
   # The YYYYMMDD_ prefix makes a reverse sort of the full paths newest first.
-  for dir in "$@"; do
-    printf '%s\n' "$dir"
-  done | sort -r
+  printf '%s\n' "$dirs" | sort -r
 }
 
 # mkwork__select_with_fzf: pick a directory with fzf.

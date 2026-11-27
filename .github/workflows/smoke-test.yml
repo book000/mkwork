@@ -116,6 +116,35 @@ jobs:
           done
           test ! -d "$tmp_dir/start/~"
 
+      - name: Select only dated directories
+        run: |
+          set -eu
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+          export HOME="$tmp_dir/home" MKWORK_TEST_SCRIPT="$(pwd)/mkwork.sh"
+          mkdir -p "$HOME/work"
+          cat > "$tmp_dir/test.sh" <<'EOF'
+          set -eu
+          . "$MKWORK_TEST_SCRIPT"
+          MKWORK_WORK_ROOT="$HOME/work"
+          ! mkwork__list_dirs > "$HOME/out" 2> "$HOME/err"
+          test ! -s "$HOME/out"
+          test "$(cat "$HOME/err")" = 'mkwork: no directories found'
+          touch "$HOME/work/20200101_note" "$HOME/work/20270101_file"
+          ! mkwork__list_dirs > "$HOME/out" 2> "$HOME/err"
+          test "$(cat "$HOME/err")" = 'mkwork: no directories found'
+          mkdir "$HOME/work/20260101_project" "$HOME/work/20250101_other"
+          expected="$(printf '%s\n%s' "$HOME/work/20260101_project" "$HOME/work/20250101_other")"
+          test "$(mkwork__list_dirs)" = "$expected"
+          test "$(printf '1\n' | mkwork__select_with_number 2> "$HOME/menu")" = "$HOME/work/20260101_project"
+          ! grep -q '20270101_file\|20200101_note' "$HOME/menu"
+          rm -r "$HOME/work"
+          mkdir "$HOME/work"
+          EOF
+          for shell in bash dash zsh; do
+            "$shell" "$tmp_dir/test.sh"
+          done
+
       - name: Preserve caller variables
         run: |
           set -eu
